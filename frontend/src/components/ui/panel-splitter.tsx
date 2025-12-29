@@ -18,9 +18,9 @@ export function PanelSplitter({
   return (
     <div
       className={cn(
-        'group relative flex w-1.5 shrink-0 cursor-ew-resize items-center justify-center',
-        'hover:bg-accent/50 transition-colors duration-150',
-        isDragging && 'bg-accent',
+        'group relative flex w-1 shrink-0 cursor-ew-resize items-center justify-center z-10',
+        'hover:bg-accent/30 transition-colors duration-200',
+        isDragging && 'bg-accent/50',
         className
       )}
       onMouseDown={onMouseDown}
@@ -29,9 +29,9 @@ export function PanelSplitter({
     >
       <div
         className={cn(
-          'h-8 w-0.5 rounded-full bg-border transition-all duration-150',
-          'group-hover:h-12 group-hover:bg-muted-foreground/50',
-          isDragging && 'h-12 bg-primary'
+          'w-0.5 rounded-full bg-border/40 transition-all duration-300 ease-out',
+          'h-6 group-hover:h-10 group-hover:bg-muted-foreground/40',
+          isDragging && 'h-full bg-primary/40 rounded-none w-[1px]'
         )}
       />
     </div>
