@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react'
 import { useEntriesInfinite } from '@/hooks/useEntries'
 import { selectionToParams, type SelectionType } from '@/hooks/useSelection'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { EntryListItem } from './EntryListItem'
 import { EntryListHeader } from './EntryListHeader'
 
@@ -46,9 +47,9 @@ export function EntryList({
         onMarkAllRead={onMarkAllRead}
       />
 
-      <div
+      <ScrollArea
         ref={containerRef}
-        className="flex-1 overflow-auto"
+        className="flex-1"
         onScroll={handleScroll}
       >
         {isLoading ? (
@@ -67,7 +68,7 @@ export function EntryList({
         )}
 
         {isFetchingNextPage && <LoadingMore />}
-      </div>
+      </ScrollArea>
     </div>
   )
 }

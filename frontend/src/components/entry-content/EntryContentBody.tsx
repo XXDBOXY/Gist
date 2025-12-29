@@ -3,6 +3,7 @@ import { useMemo, useRef } from 'react'
 import DOMPurify from 'dompurify'
 import { useCodeHighlight } from '@/hooks/useCodeHighlight'
 import { useEntryMeta } from '@/hooks/useEntryMeta'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { isSafeUrl } from '@/lib/url'
 import type { Entry } from '@/types/api'
 
@@ -142,7 +143,11 @@ export function EntryContentBody({
   const hasContent = sanitizedContent.trim().length > 0
 
   return (
-    <div ref={scrollRef} className="flex-1 overflow-auto">
+    <ScrollArea
+      ref={scrollRef}
+      className="flex-1"
+      scrollbarClassName="mt-12"
+    >
       <article className="entry-content mx-auto w-full max-w-[720px] px-6 pb-20 pt-16">
         <header className="mb-10 space-y-5">
           <h1 className="text-3xl font-bold leading-tight tracking-tight text-foreground sm:text-4xl sm:leading-[1.15]">
@@ -233,6 +238,6 @@ export function EntryContentBody({
           </div>
         )}
       </article>
-    </div>
+    </ScrollArea>
   )
 }
