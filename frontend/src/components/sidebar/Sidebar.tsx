@@ -133,27 +133,17 @@ export function Sidebar({
             </FeedCategory>
           ))}
 
-          {uncategorizedFeeds.length > 0 && (
-            <FeedCategory
-              name="Uncategorized"
-              unreadCount={uncategorizedFeeds.reduce(
-                (sum, feed) => sum + (unreadCounts.get(feed.id) || 0),
-                0
-              )}
-            >
-              {uncategorizedFeeds.map((feed) => (
-                <FeedItem
-                  key={feed.id}
-                  name={feed.title}
-                  iconPath={feed.iconPath}
-                  unreadCount={unreadCounts.get(feed.id) || 0}
-                  isActive={isFeedSelected(feed.id)}
-                  onClick={() => onSelectFeed(feed.id)}
-                  className="pl-6"
-                />
-              ))}
-            </FeedCategory>
-          )}
+          {uncategorizedFeeds.map((feed) => (
+            <FeedItem
+              key={feed.id}
+              name={feed.title}
+              iconPath={feed.iconPath}
+              unreadCount={unreadCounts.get(feed.id) || 0}
+              isActive={isFeedSelected(feed.id)}
+              onClick={() => onSelectFeed(feed.id)}
+              className="pl-2.5"
+            />
+          ))}
         </div>
       </div>
     </div>

@@ -1,10 +1,12 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useMemo } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useEntriesInfinite } from '@/hooks/useEntries'
+import { useFeeds } from '@/hooks/useFeeds'
 import { selectionToParams, type SelectionType } from '@/hooks/useSelection'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { EntryListItem } from './EntryListItem'
 import { EntryListHeader } from './EntryListHeader'
+import type { Feed } from '@/types/api'
 
 interface EntryListProps {
   selection: SelectionType
@@ -24,8 +26,17 @@ export function EntryList({
   const params = selectionToParams(selection)
   const containerRef = useRef<HTMLDivElement>(null)
 
+  const { data: feeds = [] } = useFeeds()
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
     useEntriesInfinite(params)
+
+  const feedsMap = useMemo(() => {
+    const map = new Map<number, Feed>()
+    for (const feed of feeds) {
+      map.set(feed.id, feed)
+    }
+    return map
+  }, [feeds])
 
   const entries = data?.pages.flatMap((page) => page.entries) ?? []
 
@@ -34,7 +45,6 @@ export function EntryList({
     getScrollElement: () => containerRef.current,
     estimateSize: () => ESTIMATED_ITEM_HEIGHT,
     overscan: 5,
-    measureElement: (element) => element.getBoundingClientRect().height,
   })
 
   const virtualItems = virtualizer.getVirtualItems()
@@ -74,8 +84,10 @@ export function EntryList({
               return (
                 <EntryListItem
                   key={entry.id}
+                  ref={virtualizer.measureElement}
                   data-index={virtualRow.index}
                   entry={entry}
+                  feed={feedsMap.get(entry.feedId)}
                   isSelected={entry.id === selectedEntryId}
                   onClick={() => onSelectEntry(entry.id)}
                   style={{
@@ -112,11 +124,18 @@ function EntryListSkeleton() {
   return (
     <div className="space-y-px">
       {Array.from({ length: 5 }, (_, i) => (
-        <div key={i} className="px-4 py-3 animate-pulse bg-muted/5">
-          <div className="h-4 w-3/4 rounded bg-muted" />
-          <div className="mt-2 h-3 w-full rounded bg-muted" />
+        <div key={i} className="px-4 py-3 animate-pulse">
+          {/* Line 1: icon + feed name + time */}
+          <div className="flex items-center gap-1.5">
+            <div className="size-4 rounded bg-muted" />
+            <div className="h-3 w-24 rounded bg-muted" />
+            <div className="h-3 w-12 rounded bg-muted" />
+          </div>
+          {/* Line 2: title */}
+          <div className="mt-1 h-4 w-3/4 rounded bg-muted" />
+          {/* Line 3: summary */}
+          <div className="mt-1 h-3 w-full rounded bg-muted" />
           <div className="mt-1 h-3 w-2/3 rounded bg-muted" />
-          <div className="mt-2 h-3 w-1/4 rounded bg-muted" />
         </div>
       ))}
     </div>
