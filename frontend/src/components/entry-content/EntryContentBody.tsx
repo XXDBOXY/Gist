@@ -5,6 +5,7 @@ import { useCodeHighlight } from '@/hooks/useCodeHighlight'
 import { useEntryMeta } from '@/hooks/useEntryMeta'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { isSafeUrl } from '@/lib/url'
+import { getProxiedImageUrl } from '@/lib/image-proxy'
 import type { Entry } from '@/types/api'
 
 interface EntryContentBodyProps {
@@ -15,6 +16,7 @@ interface EntryContentBodyProps {
 
 interface SanitizedContentProps {
   content: string | null | undefined
+  articleUrl?: string
 }
 
 const ALLOWED_TAGS = [
@@ -106,6 +108,7 @@ const ALLOWED_ATTR = [
 ]
 
 let hooksBound = false
+let currentArticleUrl: string | undefined
 
 function ensurePurifyHooks() {
   if (hooksBound) return
@@ -119,14 +122,22 @@ function ensurePurifyHooks() {
     if (node instanceof HTMLImageElement) {
       node.setAttribute('loading', 'lazy')
       node.setAttribute('decoding', 'async')
+
+      // Proxy image URL
+      const src = node.getAttribute('src')
+      if (src) {
+        const proxiedUrl = getProxiedImageUrl(src, currentArticleUrl)
+        node.setAttribute('src', proxiedUrl)
+      }
     }
   })
 
   hooksBound = true
 }
 
-function sanitizeContent(content: string): string {
+function sanitizeContent(content: string, articleUrl?: string): string {
   ensurePurifyHooks()
+  currentArticleUrl = articleUrl
   return DOMPurify.sanitize(content, {
     ALLOWED_TAGS,
     ALLOWED_ATTR,
@@ -138,13 +149,14 @@ function sanitizeContent(content: string): string {
 // Memoized component to prevent re-rendering when parent state changes
 const SanitizedContent = memo(function SanitizedContent({
   content,
+  articleUrl,
 }: SanitizedContentProps) {
   const contentRef = useRef<HTMLDivElement>(null)
 
   const sanitizedHtml = useMemo(() => {
     if (!content) return ''
-    return sanitizeContent(content)
-  }, [content])
+    return sanitizeContent(content, articleUrl)
+  }, [content, articleUrl])
 
   useCodeHighlight(contentRef, sanitizedHtml)
 
@@ -258,7 +270,7 @@ export function EntryContentBody({
           <hr className="border-border/60" />
         </header>
 
-        <SanitizedContent content={displayContent} />
+        <SanitizedContent content={displayContent} articleUrl={entry.url} />
       </article>
     </ScrollArea>
   )

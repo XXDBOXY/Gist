@@ -39,7 +39,7 @@ export const EntryListItem = forwardRef<HTMLDivElement, EntryListItemProps>(
           <img
             src={`/icons/${feed.iconPath}`}
             alt=""
-            className="size-4 shrink-0 rounded"
+            className="size-4 shrink-0 rounded object-contain"
             onError={() => setIconError(true)}
           />
         ) : (

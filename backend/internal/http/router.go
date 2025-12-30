@@ -15,6 +15,7 @@ func NewRouter(
 	entryHandler *handler.EntryHandler,
 	opmlHandler *handler.OPMLHandler,
 	iconHandler *handler.IconHandler,
+	proxyHandler *handler.ProxyHandler,
 	staticDir string,
 ) *echo.Echo {
 	e := echo.New()
@@ -29,6 +30,7 @@ func NewRouter(
 	feedHandler.RegisterRoutes(api)
 	entryHandler.RegisterRoutes(api)
 	opmlHandler.RegisterRoutes(api)
+	proxyHandler.RegisterRoutes(api)
 
 	// Icon routes with cache recovery
 	iconHandler.RegisterRoutes(e)

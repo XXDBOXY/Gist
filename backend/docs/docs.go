@@ -15,6 +15,53 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/proxy/image/{encoded}": {
+            "get": {
+                "description": "Proxies external images to avoid triggering anti-crawling mechanisms",
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "proxy"
+                ],
+                "summary": "Proxy external image",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Base64 URL-safe encoded image URL",
+                        "name": "encoded",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.errorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.errorResponse"
+                        }
+                    },
+                    "504": {
+                        "description": "Gateway Timeout",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.errorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/entries": {
             "get": {
                 "description": "Get a list of entries with optional filters and pagination",
@@ -737,6 +784,9 @@ const docTemplate = `{
                 "readableContent": {
                     "type": "string"
                 },
+                "thumbnailUrl": {
+                    "type": "string"
+                },
                 "title": {
                     "type": "string"
                 },
@@ -796,6 +846,9 @@ const docTemplate = `{
                 },
                 "folderId": {
                     "type": "integer"
+                },
+                "iconPath": {
+                    "type": "string"
                 },
                 "id": {
                     "type": "integer"

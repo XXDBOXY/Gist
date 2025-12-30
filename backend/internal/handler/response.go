@@ -28,3 +28,8 @@ func writeServiceError(c echo.Context, err error) error {
 		return c.JSON(http.StatusInternalServerError, errorResponse{Error: "internal error"})
 	}
 }
+
+// Error returns a JSON error response with the given status and message
+func Error(c echo.Context, status int, message string) error {
+	return c.JSON(status, errorResponse{Error: message})
+}
