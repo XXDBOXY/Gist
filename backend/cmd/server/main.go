@@ -47,7 +47,7 @@ func main() {
 	feedService := service.NewFeedService(feedRepo, folderRepo, entryRepo, iconService, nil)
 	entryService := service.NewEntryService(entryRepo, feedRepo, folderRepo)
 	readabilityService := service.NewReadabilityService(entryRepo)
-	opmlService := service.NewOPMLService(dbConn, folderRepo, feedRepo)
+	opmlService := service.NewOPMLService(folderService, feedService, folderRepo, feedRepo)
 	refreshService := service.NewRefreshService(feedRepo, entryRepo, nil)
 
 	proxyService := service.NewProxyService()
@@ -55,8 +55,9 @@ func main() {
 	folderHandler := handler.NewFolderHandler(folderService)
 	feedHandler := handler.NewFeedHandler(feedService)
 	entryHandler := handler.NewEntryHandler(entryService, readabilityService)
-	opmlHandler := handler.NewOPMLHandler(opmlService)
-	iconHandler := handler.NewIconHandler(cfg.DataDir, iconService, feedRepo)
+	importTaskService := service.NewImportTaskService()
+	opmlHandler := handler.NewOPMLHandler(opmlService, importTaskService)
+	iconHandler := handler.NewIconHandler(iconService)
 	proxyHandler := handler.NewProxyHandler(proxyService)
 
 	router := transport.NewRouter(folderHandler, feedHandler, entryHandler, opmlHandler, iconHandler, proxyHandler, cfg.StaticDir)

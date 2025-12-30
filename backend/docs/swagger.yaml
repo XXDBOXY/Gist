@@ -11,6 +11,26 @@ definitions:
       foldersSkipped:
         type: integer
     type: object
+  gist_backend_internal_service.ImportTask:
+    properties:
+      createdAt:
+        type: string
+      current:
+        type: integer
+      error:
+        type: string
+      feed:
+        type: string
+      id:
+        type: string
+      result:
+        $ref: '#/definitions/gist_backend_internal_service.ImportResult'
+      status:
+        description: '"running", "done", "error", "cancelled"'
+        type: string
+      total:
+        type: integer
+    type: object
   internal_handler.createFeedRequest:
     properties:
       folderId:
@@ -121,6 +141,16 @@ definitions:
       parentId:
         type: integer
       updatedAt:
+        type: string
+    type: object
+  internal_handler.importCancelledResponse:
+    properties:
+      cancelled:
+        type: boolean
+    type: object
+  internal_handler.importStartedResponse:
+    properties:
+      status:
         type: string
     type: object
   internal_handler.markAllReadRequest:
@@ -576,11 +606,23 @@ paths:
       tags:
       - opml
   /opml/import:
+    delete:
+      description: Cancel the current import task
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/internal_handler.importCancelledResponse'
+      summary: Cancel Import
+      tags:
+      - opml
     post:
       consumes:
       - multipart/form-data
       - text/xml
-      description: Import feeds and folders from an OPML file or body
+      description: Start importing feeds and folders from an OPML file
       parameters:
       - description: OPML file to import
         in: formData
@@ -592,7 +634,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/gist_backend_internal_service.ImportResult'
+            $ref: '#/definitions/internal_handler.importStartedResponse'
         "400":
           description: Bad Request
           schema:
@@ -602,6 +644,19 @@ paths:
           schema:
             $ref: '#/definitions/internal_handler.errorResponse'
       summary: Import OPML
+      tags:
+      - opml
+  /opml/import/status:
+    get:
+      description: Get current import task status via SSE stream
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/gist_backend_internal_service.ImportTask'
+      summary: Import Status
       tags:
       - opml
   /unread-counts:

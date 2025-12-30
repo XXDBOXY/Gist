@@ -648,7 +648,7 @@ const docTemplate = `{
         },
         "/opml/import": {
             "post": {
-                "description": "Import feeds and folders from an OPML file or body",
+                "description": "Start importing feeds and folders from an OPML file",
                 "consumes": [
                     "multipart/form-data",
                     "text/xml"
@@ -672,7 +672,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/gist_backend_internal_service.ImportResult"
+                            "$ref": "#/definitions/internal_handler.importStartedResponse"
                         }
                     },
                     "400": {
@@ -685,6 +685,44 @@ const docTemplate = `{
                         "description": "Request Entity Too Large",
                         "schema": {
                             "$ref": "#/definitions/internal_handler.errorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Cancel the current import task",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "opml"
+                ],
+                "summary": "Cancel Import",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/internal_handler.importCancelledResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/opml/import/status": {
+            "get": {
+                "description": "Get current import task status via SSE stream",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "opml"
+                ],
+                "summary": "Import Status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/gist_backend_internal_service.ImportTask"
                         }
                     }
                 }
@@ -725,6 +763,36 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "foldersSkipped": {
+                    "type": "integer"
+                }
+            }
+        },
+        "gist_backend_internal_service.ImportTask": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "current": {
+                    "type": "integer"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "feed": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "result": {
+                    "$ref": "#/definitions/gist_backend_internal_service.ImportResult"
+                },
+                "status": {
+                    "description": "\"running\", \"done\", \"error\", \"cancelled\"",
+                    "type": "string"
+                },
+                "total": {
                     "type": "integer"
                 }
             }
@@ -897,6 +965,22 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "internal_handler.importCancelledResponse": {
+            "type": "object",
+            "properties": {
+                "cancelled": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "internal_handler.importStartedResponse": {
+            "type": "object",
+            "properties": {
+                "status": {
                     "type": "string"
                 }
             }

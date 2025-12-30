@@ -20,8 +20,12 @@ type IconService interface {
 	FetchAndSaveIcon(ctx context.Context, feedID int64, feedImageURL, siteURL string) (string, error)
 	// EnsureIcon checks if the icon file exists, re-downloads if missing
 	EnsureIcon(ctx context.Context, feedID int64, iconPath, siteURL string) error
+	// EnsureIconByFeedID checks if icon exists, fetches feed's siteURL and re-downloads if missing
+	EnsureIconByFeedID(ctx context.Context, feedID int64, iconPath string) error
 	// BackfillIcons fetches icons for all feeds that don't have one
 	BackfillIcons(ctx context.Context) error
+	// GetIconPath returns the full path for an icon file
+	GetIconPath(filename string) string
 }
 
 type iconService struct {
@@ -112,6 +116,29 @@ func (s *iconService) EnsureIcon(ctx context.Context, feedID int64, iconPath, si
 	}
 
 	return nil
+}
+
+func (s *iconService) EnsureIconByFeedID(ctx context.Context, feedID int64, iconPath string) error {
+	if iconPath == "" {
+		return fmt.Errorf("empty icon path")
+	}
+
+	// Get feed to get siteURL
+	feed, err := s.feeds.GetByID(ctx, feedID)
+	if err != nil {
+		return fmt.Errorf("get feed: %w", err)
+	}
+
+	siteURL := ""
+	if feed.SiteURL != nil {
+		siteURL = *feed.SiteURL
+	}
+
+	return s.EnsureIcon(ctx, feedID, iconPath, siteURL)
+}
+
+func (s *iconService) GetIconPath(filename string) string {
+	return filepath.Join(s.dataDir, "icons", filename)
 }
 
 func (s *iconService) BackfillIcons(ctx context.Context) error {

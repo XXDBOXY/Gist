@@ -1,9 +1,10 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { SidebarHeader } from './SidebarHeader'
 import { StarredItem } from './StarredItem'
 import { FeedCategory } from './FeedCategory'
 import { FeedItem } from './FeedItem'
+import { SettingsModal } from '@/components/settings'
 import { useFolders } from '@/hooks/useFolders'
 import { useFeeds } from '@/hooks/useFeeds'
 import { useUnreadCounts } from '@/hooks/useEntries'
@@ -43,6 +44,8 @@ export function Sidebar({
   onSelectFeed,
   onSelectFolder,
 }: SidebarProps) {
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+
   const { data: folders = [] } = useFolders()
   const { data: feeds = [] } = useFeeds()
   const { data: unreadCountsData } = useUnreadCounts()
@@ -86,7 +89,7 @@ export function Sidebar({
 
   return (
     <div className="flex h-full flex-col bg-sidebar">
-      <SidebarHeader onAddClick={onAddClick} />
+      <SidebarHeader onAddClick={onAddClick} onSettingsClick={() => setIsSettingsOpen(true)} />
 
       <div className="flex-1 overflow-auto px-1">
         {/* All Articles */}
@@ -146,6 +149,8 @@ export function Sidebar({
           ))}
         </div>
       </div>
+
+      <SettingsModal open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
     </div>
   )
 }

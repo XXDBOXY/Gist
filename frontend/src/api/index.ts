@@ -6,6 +6,7 @@ import type {
   Feed,
   FeedPreview,
   Folder,
+  ImportTask,
   MarkAllReadParams,
   UnreadCountsResponse,
 } from '@/types/api'
@@ -189,4 +190,83 @@ export async function markAllAsRead(params: MarkAllReadParams): Promise<void> {
 
 export async function getUnreadCounts(): Promise<UnreadCountsResponse> {
   return request<UnreadCountsResponse>('/api/unread-counts')
+}
+
+export async function startImportOPML(file: File): Promise<void> {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const url = `${API_BASE_URL}/api/opml/import`
+  const response = await fetch(url, {
+    method: 'POST',
+    body: formData,
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    throw new ApiError(text || 'Import failed', response.status)
+  }
+}
+
+export async function cancelImportOPML(): Promise<boolean> {
+  const result = await request<{ cancelled: boolean }>('/api/opml/import', {
+    method: 'DELETE',
+  })
+  return result.cancelled
+}
+
+export function watchImportStatus(onUpdate: (task: ImportTask) => void): () => void {
+  const url = `${API_BASE_URL}/api/opml/import/status`
+  let cancelled = false
+
+  const connect = async () => {
+    try {
+      const response = await fetch(url)
+      if (!response.ok || !response.body) return
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (!cancelled) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const task = JSON.parse(line.slice(6)) as ImportTask
+              onUpdate(task)
+
+              // Stop if done, error, or cancelled
+              if (task.status === 'done' || task.status === 'error' || task.status === 'cancelled') {
+                cancelled = true
+                reader.cancel()
+                return
+              }
+            } catch {
+              // ignore parse errors
+            }
+          }
+        }
+      }
+    } catch {
+      // connection error, ignore
+    }
+  }
+
+  connect()
+
+  return () => {
+    cancelled = true
+  }
+}
+
+export function exportOPML(): void {
+  const url = `${API_BASE_URL}/api/opml/export`
+  window.location.href = url
 }

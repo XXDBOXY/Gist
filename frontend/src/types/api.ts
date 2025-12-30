@@ -70,3 +70,21 @@ export interface MarkAllReadParams {
 export interface ApiErrorResponse {
   error: string
 }
+
+export interface ImportResult {
+  foldersCreated: number
+  foldersSkipped: number
+  feedsCreated: number
+  feedsSkipped: number
+}
+
+export interface ImportTask {
+  id?: string
+  status: 'idle' | 'running' | 'done' | 'error' | 'cancelled'
+  total: number
+  current: number
+  feed?: string
+  result?: ImportResult
+  error?: string
+  createdAt?: string
+}

@@ -13,6 +13,18 @@ type errorResponse struct {
 	Error string `json:"error"`
 }
 
+type importStartedResponse struct {
+	Status string `json:"status"`
+}
+
+type importCancelledResponse struct {
+	Cancelled bool `json:"cancelled"`
+}
+
+type importIdleResponse struct {
+	Status string `json:"status"`
+}
+
 func writeServiceError(c echo.Context, err error) error {
 	switch {
 	case errors.Is(err, service.ErrInvalid):

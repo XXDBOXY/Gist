@@ -10,21 +10,16 @@ import (
 
 	"github.com/labstack/echo/v4"
 
-	"gist/backend/internal/repository"
 	"gist/backend/internal/service"
 )
 
 type IconHandler struct {
-	dataDir     string
 	iconService service.IconService
-	feeds       repository.FeedRepository
 }
 
-func NewIconHandler(dataDir string, iconService service.IconService, feeds repository.FeedRepository) *IconHandler {
+func NewIconHandler(iconService service.IconService) *IconHandler {
 	return &IconHandler{
-		dataDir:     dataDir,
 		iconService: iconService,
-		feeds:       feeds,
 	}
 }
 
@@ -41,7 +36,7 @@ func (h *IconHandler) GetIcon(c echo.Context) error {
 
 	// Sanitize filename to prevent path traversal
 	filename = filepath.Base(filename)
-	fullPath := filepath.Join(h.dataDir, "icons", filename)
+	fullPath := h.iconService.GetIconPath(filename)
 
 	// Check if file exists
 	if _, err := os.Stat(fullPath); err == nil {
@@ -55,18 +50,8 @@ func (h *IconHandler) GetIcon(c echo.Context) error {
 		return c.NoContent(http.StatusNotFound)
 	}
 
-	// Get feed to get siteURL for favicon fetch
-	feed, err := h.feeds.GetByID(c.Request().Context(), feedID)
-	if err != nil {
-		return c.NoContent(http.StatusNotFound)
-	}
-
-	// Try to recover icon
-	siteURL := ""
-	if feed.SiteURL != nil {
-		siteURL = *feed.SiteURL
-	}
-	if err := h.iconService.EnsureIcon(c.Request().Context(), feedID, filename, siteURL); err != nil {
+	// Try to recover icon via service (fetches feed's siteURL internally)
+	if err := h.iconService.EnsureIconByFeedID(c.Request().Context(), feedID, filename); err != nil {
 		return c.NoContent(http.StatusNotFound)
 	}
 

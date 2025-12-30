@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -16,7 +15,7 @@ import (
 )
 
 type OPMLService interface {
-	Import(ctx context.Context, reader io.Reader) (ImportResult, error)
+	Import(ctx context.Context, reader io.Reader, onProgress func(ImportProgress)) (ImportResult, error)
 	Export(ctx context.Context) ([]byte, error)
 }
 
@@ -27,42 +26,69 @@ type ImportResult struct {
 	FeedsSkipped   int `json:"feedsSkipped"`
 }
 
+type ImportProgress struct {
+	Total   int    `json:"total"`
+	Current int    `json:"current"`
+	Feed    string `json:"feed,omitempty"`
+	Status  string `json:"status"` // "started", "importing", "done", "error"
+}
+
 type opmlService struct {
-	db      *sql.DB
-	folders repository.FolderRepository
-	feeds   repository.FeedRepository
+	folderService FolderService
+	feedService   FeedService
+	folders       repository.FolderRepository
+	feeds         repository.FeedRepository
 }
 
-func NewOPMLService(db *sql.DB, folders repository.FolderRepository, feeds repository.FeedRepository) OPMLService {
-	return &opmlService{db: db, folders: folders, feeds: feeds}
+func NewOPMLService(
+	folderService FolderService,
+	feedService FeedService,
+	folders repository.FolderRepository,
+	feeds repository.FeedRepository,
+) OPMLService {
+	return &opmlService{
+		folderService: folderService,
+		feedService:   feedService,
+		folders:       folders,
+		feeds:         feeds,
+	}
 }
 
-func (s *opmlService) Import(ctx context.Context, reader io.Reader) (ImportResult, error) {
+func (s *opmlService) Import(ctx context.Context, reader io.Reader, onProgress func(ImportProgress)) (ImportResult, error) {
 	doc, err := opml.Parse(reader)
 	if err != nil {
 		return ImportResult{}, ErrInvalid
 	}
 
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		return ImportResult{}, fmt.Errorf("begin transaction: %w", err)
+	// Count total feeds
+	total := countFeeds(doc.Body.Outlines)
+
+	// Send started progress
+	if onProgress != nil {
+		onProgress(ImportProgress{Total: total, Current: 0, Status: "started"})
 	}
-	foldersRepo := repository.NewFolderRepository(tx)
-	feedsRepo := repository.NewFeedRepository(tx)
 
 	result := ImportResult{}
+	current := 0
 	for _, outline := range doc.Body.Outlines {
-		if err := importOutline(ctx, outline, nil, foldersRepo, feedsRepo, &result); err != nil {
-			_ = tx.Rollback()
-			return ImportResult{}, err
+		if err := s.importOutline(ctx, outline, nil, &result, &current, total, onProgress); err != nil {
+			return result, err
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
-		return ImportResult{}, fmt.Errorf("commit transaction: %w", err)
-	}
-
 	return result, nil
+}
+
+func countFeeds(outlines []opml.Outline) int {
+	count := 0
+	for _, outline := range outlines {
+		if isFeedOutline(outline) {
+			count++
+		} else {
+			count += countFeeds(outline.Outlines)
+		}
+	}
+	return count
 }
 
 func (s *opmlService) Export(ctx context.Context) ([]byte, error) {
@@ -94,20 +120,21 @@ func (s *opmlService) Export(ctx context.Context) ([]byte, error) {
 	return payload, nil
 }
 
-func importOutline(
+func (s *opmlService) importOutline(
 	ctx context.Context,
 	outline opml.Outline,
 	parentID *int64,
-	folders repository.FolderRepository,
-	feeds repository.FeedRepository,
 	result *ImportResult,
+	current *int,
+	total int,
+	onProgress func(ImportProgress),
 ) error {
 	if isFeedOutline(outline) {
-		return importFeed(ctx, outline, parentID, feeds, result)
+		return s.importFeed(ctx, outline, parentID, result, current, total, onProgress)
 	}
 
 	folderName := pickOutlineTitle(outline)
-	folder, created, err := ensureFolder(ctx, folderName, parentID, folders)
+	folder, created, err := s.ensureFolder(ctx, folderName, parentID)
 	if err != nil {
 		return err
 	}
@@ -118,7 +145,7 @@ func importOutline(
 	}
 
 	for _, child := range outline.Outlines {
-		if err := importOutline(ctx, child, &folder.ID, folders, feeds, result); err != nil {
+		if err := s.importOutline(ctx, child, &folder.ID, result, current, total, onProgress); err != nil {
 			return err
 		}
 	}
@@ -126,64 +153,79 @@ func importOutline(
 	return nil
 }
 
-func ensureFolder(ctx context.Context, name string, parentID *int64, folders repository.FolderRepository) (model.Folder, bool, error) {
+func (s *opmlService) ensureFolder(ctx context.Context, name string, parentID *int64) (model.Folder, bool, error) {
 	if strings.TrimSpace(name) == "" {
 		name = "Untitled"
 	}
-	if existing, err := folders.FindByName(ctx, name, parentID); err != nil {
+
+	// Try to find existing folder first
+	if existing, err := s.folders.FindByName(ctx, name, parentID); err != nil {
 		return model.Folder{}, false, fmt.Errorf("find folder: %w", err)
 	} else if existing != nil {
 		return *existing, false, nil
 	}
 
-	folder, err := folders.Create(ctx, name, parentID)
+	// Create new folder using FolderService
+	folder, err := s.folderService.Create(ctx, name, parentID)
 	if err != nil {
+		if errors.Is(err, ErrConflict) {
+			// Race condition: folder was created between check and create
+			if existing, findErr := s.folders.FindByName(ctx, name, parentID); findErr == nil && existing != nil {
+				return *existing, false, nil
+			}
+		}
 		return model.Folder{}, false, fmt.Errorf("create folder: %w", err)
 	}
 	return folder, true, nil
 }
 
-func importFeed(
+func (s *opmlService) importFeed(
 	ctx context.Context,
 	outline opml.Outline,
 	folderID *int64,
-	feeds repository.FeedRepository,
 	result *ImportResult,
+	current *int,
+	total int,
+	onProgress func(ImportProgress),
 ) error {
 	feedURL := strings.TrimSpace(outline.XMLURL)
-	if feedURL == "" {
-		result.FeedsSkipped++
-		return nil
-	}
-	if existing, err := feeds.FindByURL(ctx, feedURL); err != nil {
-		return fmt.Errorf("check feed url: %w", err)
-	} else if existing != nil {
-		result.FeedsSkipped++
-		return nil
-	}
-
 	title := strings.TrimSpace(outline.Title)
 	if title == "" {
 		title = strings.TrimSpace(outline.Text)
 	}
-	if title == "" {
-		title = feedURL
+
+	// Send progress before importing
+	*current++
+	if onProgress != nil {
+		onProgress(ImportProgress{
+			Total:   total,
+			Current: *current,
+			Feed:    title,
+			Status:  "importing",
+		})
 	}
 
-	feed := model.Feed{
-		FolderID:    folderID,
-		Title:       title,
-		URL:         feedURL,
-		SiteURL:     optionalString(outline.HTMLURL),
-		Description: nil,
+	if feedURL == "" {
+		result.FeedsSkipped++
+		return nil
 	}
-	if _, err := feeds.Create(ctx, feed); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+
+	// Use FeedService.Add to create feed (will fetch and refresh automatically)
+	_, err := s.feedService.Add(ctx, feedURL, folderID, title)
+	if err != nil {
+		if errors.Is(err, ErrConflict) {
+			// Feed already exists
 			result.FeedsSkipped++
 			return nil
 		}
-		return fmt.Errorf("create feed: %w", err)
+		if errors.Is(err, ErrFeedFetch) {
+			// Feed fetch failed, skip but don't fail the whole import
+			result.FeedsSkipped++
+			return nil
+		}
+		return fmt.Errorf("add feed %s: %w", feedURL, err)
 	}
+
 	result.FeedsCreated++
 	return nil
 }
