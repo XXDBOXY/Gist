@@ -70,8 +70,8 @@ type starredCountResponse struct {
 }
 
 type markAllReadRequest struct {
-	FeedID   *int64 `json:"feedId,omitempty"`
-	FolderID *int64 `json:"folderId,omitempty"`
+	FeedID   *string `json:"feedId,omitempty"`
+	FolderID *string `json:"folderId,omitempty"`
 }
 
 type unreadCountsResponse struct {
@@ -255,7 +255,23 @@ func (h *EntryHandler) MarkAllAsRead(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, errorResponse{Error: "invalid request"})
 	}
 
-	if err := h.service.MarkAllAsRead(c.Request().Context(), req.FeedID, req.FolderID); err != nil {
+	var feedID, folderID *int64
+	if req.FeedID != nil {
+		id, err := strconv.ParseInt(*req.FeedID, 10, 64)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, errorResponse{Error: "invalid feed ID"})
+		}
+		feedID = &id
+	}
+	if req.FolderID != nil {
+		id, err := strconv.ParseInt(*req.FolderID, 10, 64)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, errorResponse{Error: "invalid folder ID"})
+		}
+		folderID = &id
+	}
+
+	if err := h.service.MarkAllAsRead(c.Request().Context(), feedID, folderID); err != nil {
 		return writeServiceError(c, err)
 	}
 

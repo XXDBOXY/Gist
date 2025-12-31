@@ -34,7 +34,7 @@ definitions:
   internal_handler.createFeedRequest:
     properties:
       folderId:
-        type: integer
+        type: string
       title:
         type: string
       url:
@@ -144,7 +144,7 @@ definitions:
       name:
         type: string
       parentId:
-        type: integer
+        type: string
     type: object
   internal_handler.folderResponse:
     properties:
@@ -172,9 +172,9 @@ definitions:
   internal_handler.markAllReadRequest:
     properties:
       feedId:
-        type: integer
+        type: string
       folderId:
-        type: integer
+        type: string
     type: object
   internal_handler.readableContentResponse:
     properties:
@@ -196,7 +196,7 @@ definitions:
   internal_handler.updateFeedRequest:
     properties:
       folderId:
-        type: integer
+        type: string
       title:
         type: string
     type: object

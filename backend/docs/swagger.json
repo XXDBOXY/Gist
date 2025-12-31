@@ -954,7 +954,7 @@
             "type": "object",
             "properties": {
                 "folderId": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "title": {
                     "type": "string"
@@ -1123,7 +1123,7 @@
                     "type": "string"
                 },
                 "parentId": {
-                    "type": "integer"
+                    "type": "string"
                 }
             }
         },
@@ -1167,10 +1167,10 @@
             "type": "object",
             "properties": {
                 "feedId": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "folderId": {
-                    "type": "integer"
+                    "type": "string"
                 }
             }
         },
@@ -1205,7 +1205,7 @@
             "type": "object",
             "properties": {
                 "folderId": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "title": {
                     "type": "string"

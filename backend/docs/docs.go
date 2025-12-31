@@ -961,7 +961,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "folderId": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "title": {
                     "type": "string"
@@ -1130,7 +1130,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "parentId": {
-                    "type": "integer"
+                    "type": "string"
                 }
             }
         },
@@ -1174,10 +1174,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "feedId": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "folderId": {
-                    "type": "integer"
+                    "type": "string"
                 }
             }
         },
@@ -1212,7 +1212,7 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "folderId": {
-                    "type": "integer"
+                    "type": "string"
                 },
                 "title": {
                     "type": "string"

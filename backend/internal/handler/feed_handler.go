@@ -19,14 +19,14 @@ type FeedHandler struct {
 }
 
 type createFeedRequest struct {
-	URL      string `json:"url"`
-	FolderID *int64 `json:"folderId"`
-	Title    string `json:"title"`
+	URL      string  `json:"url"`
+	FolderID *string `json:"folderId"`
+	Title    string  `json:"title"`
 }
 
 type updateFeedRequest struct {
-	Title    string `json:"title"`
-	FolderID *int64 `json:"folderId"`
+	Title    string  `json:"title"`
+	FolderID *string `json:"folderId"`
 }
 
 type deleteFeedsRequest struct {
@@ -86,7 +86,15 @@ func (h *FeedHandler) Create(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, errorResponse{Error: "invalid request"})
 	}
-	feed, err := h.service.Add(c.Request().Context(), req.URL, req.FolderID, req.Title)
+	var folderID *int64
+	if req.FolderID != nil {
+		id, err := strconv.ParseInt(*req.FolderID, 10, 64)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, errorResponse{Error: "invalid folder ID"})
+		}
+		folderID = &id
+	}
+	feed, err := h.service.Add(c.Request().Context(), req.URL, folderID, req.Title)
 	if err != nil {
 		return writeServiceError(c, err)
 	}
@@ -164,7 +172,15 @@ func (h *FeedHandler) Update(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, errorResponse{Error: "invalid request"})
 	}
-	feed, err := h.service.Update(c.Request().Context(), id, req.Title, req.FolderID)
+	var folderID *int64
+	if req.FolderID != nil {
+		fid, err := strconv.ParseInt(*req.FolderID, 10, 64)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, errorResponse{Error: "invalid folder ID"})
+		}
+		folderID = &fid
+	}
+	feed, err := h.service.Update(c.Request().Context(), id, req.Title, folderID)
 	if err != nil {
 		return writeServiceError(c, err)
 	}

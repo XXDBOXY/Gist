@@ -16,8 +16,8 @@ type FolderHandler struct {
 }
 
 type folderRequest struct {
-	Name     string `json:"name"`
-	ParentID *int64 `json:"parentId"`
+	Name     string  `json:"name"`
+	ParentID *string `json:"parentId"`
 }
 
 type deleteFoldersRequest struct {
@@ -59,7 +59,15 @@ func (h *FolderHandler) Create(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, errorResponse{Error: "invalid request"})
 	}
-	folder, err := h.service.Create(c.Request().Context(), req.Name, req.ParentID)
+	var parentID *int64
+	if req.ParentID != nil {
+		id, err := strconv.ParseInt(*req.ParentID, 10, 64)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, errorResponse{Error: "invalid parent ID"})
+		}
+		parentID = &id
+	}
+	folder, err := h.service.Create(c.Request().Context(), req.Name, parentID)
 	if err != nil {
 		return writeServiceError(c, err)
 	}
@@ -106,7 +114,15 @@ func (h *FolderHandler) Update(c echo.Context) error {
 	if err := c.Bind(&req); err != nil {
 		return c.JSON(http.StatusBadRequest, errorResponse{Error: "invalid request"})
 	}
-	folder, err := h.service.Update(c.Request().Context(), id, req.Name, req.ParentID)
+	var parentID *int64
+	if req.ParentID != nil {
+		pid, err := strconv.ParseInt(*req.ParentID, 10, 64)
+		if err != nil {
+			return c.JSON(http.StatusBadRequest, errorResponse{Error: "invalid parent ID"})
+		}
+		parentID = &pid
+	}
+	folder, err := h.service.Update(c.Request().Context(), id, req.Name, parentID)
 	if err != nil {
 		return writeServiceError(c, err)
 	}
