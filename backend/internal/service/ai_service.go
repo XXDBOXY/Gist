@@ -213,7 +213,13 @@ func (s *aiService) TranslateBlocks(ctx context.Context, entryID int64, content,
 		var resultsMu sync.Mutex
 		var hasError bool
 
+	blockLoop:
 		for _, block := range blocks {
+			// Check if context is cancelled before processing each block
+			if ctx.Err() != nil {
+				break
+			}
+
 			if !block.NeedTranslate {
 				// No translation needed, add to results for caching
 				resultsMu.Lock()
@@ -227,7 +233,14 @@ func (s *aiService) TranslateBlocks(ctx context.Context, entryID int64, content,
 			}
 
 			wg.Add(1)
-			sem <- struct{}{} // Acquire semaphore
+
+			// Acquire semaphore with context cancellation support
+			select {
+			case sem <- struct{}{}:
+			case <-ctx.Done():
+				wg.Done()
+				break blockLoop
+			}
 
 			go func(b ai.Block) {
 				defer wg.Done()
@@ -244,66 +257,39 @@ func (s *aiService) TranslateBlocks(ctx context.Context, entryID int64, content,
 					return
 				}
 
-				// Translate single block
+				// Translate single block using non-streaming Complete
 				systemPrompt := ai.GetTranslateBlockPrompt(language)
-				textCh, blockErrCh := provider.SummarizeStream(ctx, systemPrompt, b.HTML)
-
-				var translatedHTML strings.Builder
-				for {
+				translatedHTML, err := provider.Complete(ctx, systemPrompt, b.HTML)
+				if err != nil {
 					select {
-					case text, ok := <-textCh:
-						if !ok {
-							// Channel closed, check for errors
-							select {
-							case err := <-blockErrCh:
-								if err != nil {
-									select {
-									case errCh <- fmt.Errorf("translate block %d: %w", b.Index, err):
-										hasError = true
-									default:
-									}
-									return
-								}
-							default:
-							}
-
-							// Send result
-							result := TranslateBlockResult{
-								Index: b.Index,
-								HTML:  translatedHTML.String(),
-							}
-							resultsMu.Lock()
-							results = append(results, result)
-							resultsMu.Unlock()
-
-							select {
-							case resultCh <- result:
-							case <-ctx.Done():
-								return
-							}
-							return
-						}
-						translatedHTML.WriteString(text)
-					case err := <-blockErrCh:
-						if err != nil {
-							select {
-							case errCh <- fmt.Errorf("translate block %d: %w", b.Index, err):
-								hasError = true
-							default:
-							}
-							return
-						}
-					case <-ctx.Done():
-						return
+					case errCh <- fmt.Errorf("translate block %d: %w", b.Index, err):
+						hasError = true
+					default:
 					}
+					return
+				}
+
+				// Send result
+				result := TranslateBlockResult{
+					Index: b.Index,
+					HTML:  translatedHTML,
+				}
+				resultsMu.Lock()
+				results = append(results, result)
+				resultsMu.Unlock()
+
+				select {
+				case resultCh <- result:
+				case <-ctx.Done():
+					return
 				}
 			}(block)
 		}
 
 		wg.Wait()
 
-		// Cache complete result if no errors
-		if !hasError && len(results) > 0 {
+		// Cache complete result if no errors and not cancelled
+		if !hasError && len(results) > 0 && ctx.Err() == nil {
 			// Sort by index
 			sort.Slice(results, func(i, j int) bool {
 				return results[i].Index < results[j].Index

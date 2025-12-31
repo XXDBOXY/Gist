@@ -15,6 +15,8 @@ type Provider interface {
 	// Returns two channels: one for text chunks, one for errors.
 	// The text channel is closed when streaming is complete.
 	SummarizeStream(ctx context.Context, systemPrompt, content string) (<-chan string, <-chan error)
+	// Complete generates a response without streaming.
+	Complete(ctx context.Context, systemPrompt, content string) (string, error)
 }
 
 // Config holds the configuration for an AI provider.

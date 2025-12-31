@@ -103,6 +103,7 @@ func (p *OpenAIProvider) SummarizeStream(ctx context.Context, systemPrompt, cont
 		}
 
 		stream := p.client.Chat.Completions.NewStreaming(ctx, params)
+		defer stream.Close() // Close HTTP connection when done or cancelled
 
 		for stream.Next() {
 			chunk := stream.Current()
@@ -126,4 +127,33 @@ func (p *OpenAIProvider) SummarizeStream(ctx context.Context, systemPrompt, cont
 	}()
 
 	return textCh, errCh
+}
+
+// Complete generates a response without streaming.
+func (p *OpenAIProvider) Complete(ctx context.Context, systemPrompt, content string) (string, error) {
+	messages := []openai.ChatCompletionMessageParamUnion{}
+	if systemPrompt != "" {
+		messages = append(messages, openai.SystemMessage(systemPrompt))
+	}
+	messages = append(messages, openai.UserMessage(content))
+
+	params := openai.ChatCompletionNewParams{
+		Model:    openai.ChatModel(p.model),
+		Messages: messages,
+	}
+
+	// For reasoning models (o1, o3, gpt-5), use reasoning_effort
+	if p.thinking && p.isReasoningModel() && p.reasoningEffort != "" {
+		params.ReasoningEffort = shared.ReasoningEffort(p.reasoningEffort)
+	}
+
+	resp, err := p.client.Chat.Completions.New(ctx, params)
+	if err != nil {
+		return "", err
+	}
+
+	if len(resp.Choices) == 0 {
+		return "", nil
+	}
+	return resp.Choices[0].Message.Content, nil
 }

@@ -122,6 +122,7 @@ func (p *CompatibleProvider) SummarizeStream(ctx context.Context, systemPrompt, 
 		}
 
 		stream := p.client.Chat.Completions.NewStreaming(ctx, params, opts...)
+		defer stream.Close() // Close HTTP connection when done or cancelled
 
 		for stream.Next() {
 			chunk := stream.Current()
@@ -145,4 +146,47 @@ func (p *CompatibleProvider) SummarizeStream(ctx context.Context, systemPrompt, 
 	}()
 
 	return textCh, errCh
+}
+
+// Complete generates a response without streaming.
+func (p *CompatibleProvider) Complete(ctx context.Context, systemPrompt, content string) (string, error) {
+	messages := []openai.ChatCompletionMessageParamUnion{}
+	if systemPrompt != "" {
+		messages = append(messages, openai.SystemMessage(systemPrompt))
+	}
+	messages = append(messages, openai.UserMessage(content))
+
+	params := openai.ChatCompletionNewParams{
+		Model:    openai.ChatModel(p.model),
+		Messages: messages,
+	}
+
+	var opts []option.RequestOption
+
+	// Build reasoning parameter based on configuration
+	if p.thinking {
+		reasoning := map[string]interface{}{}
+		if p.reasoningEffort != "" {
+			reasoning["effort"] = p.reasoningEffort
+		} else if p.thinkingBudget > 0 {
+			reasoning["max_tokens"] = p.thinkingBudget
+		}
+		if len(reasoning) > 0 {
+			opts = append(opts, option.WithJSONSet("reasoning", reasoning))
+		}
+	} else {
+		opts = append(opts, option.WithJSONSet("reasoning", map[string]interface{}{
+			"enabled": false,
+		}))
+	}
+
+	resp, err := p.client.Chat.Completions.New(ctx, params, opts...)
+	if err != nil {
+		return "", err
+	}
+
+	if len(resp.Choices) == 0 {
+		return "", nil
+	}
+	return resp.Choices[0].Message.Content, nil
 }

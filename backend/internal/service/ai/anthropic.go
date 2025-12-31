@@ -111,6 +111,7 @@ func (p *AnthropicProvider) SummarizeStream(ctx context.Context, systemPrompt, c
 		}
 
 		stream := p.client.Messages.NewStreaming(ctx, params)
+		defer stream.Close() // Close HTTP connection when done or cancelled
 
 		for stream.Next() {
 			event := stream.Current()
@@ -137,4 +138,46 @@ func (p *AnthropicProvider) SummarizeStream(ctx context.Context, systemPrompt, c
 	}()
 
 	return textCh, errCh
+}
+
+// Complete generates a response without streaming.
+func (p *AnthropicProvider) Complete(ctx context.Context, systemPrompt, content string) (string, error) {
+	params := anthropic.MessageNewParams{
+		Model: anthropic.Model(p.model),
+		Messages: []anthropic.MessageParam{
+			anthropic.NewUserMessage(anthropic.NewTextBlock(content)),
+		},
+	}
+
+	if systemPrompt != "" {
+		params.System = []anthropic.TextBlockParam{
+			{Text: systemPrompt},
+		}
+	}
+
+	// Configure extended thinking
+	if p.thinking && p.thinkingBudget > 0 {
+		params.MaxTokens = int64(p.thinkingBudget + 64000)
+		params.Thinking = anthropic.ThinkingConfigParamOfEnabled(int64(p.thinkingBudget))
+	} else {
+		params.MaxTokens = 64000
+		disabled := anthropic.NewThinkingConfigDisabledParam()
+		params.Thinking = anthropic.ThinkingConfigParamUnion{
+			OfDisabled: &disabled,
+		}
+	}
+
+	resp, err := p.client.Messages.New(ctx, params)
+	if err != nil {
+		return "", err
+	}
+
+	// Extract text content from response (skip thinking blocks)
+	for _, block := range resp.Content {
+		switch v := block.AsAny().(type) {
+		case anthropic.TextBlock:
+			return v.Text, nil
+		}
+	}
+	return "", nil
 }
