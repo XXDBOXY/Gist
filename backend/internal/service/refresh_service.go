@@ -6,15 +6,57 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/mmcdole/gofeed"
+	"golang.org/x/sync/errgroup"
+	"golang.org/x/sync/semaphore"
 
 	"gist/backend/internal/model"
 	"gist/backend/internal/repository"
 )
+
+const (
+	// maxConcurrentRefresh limits parallel feed refreshes to avoid overwhelming
+	// the network and remote servers.
+	maxConcurrentRefresh = 8
+	// maxConcurrentPerHost limits parallel requests to the same host to be polite.
+	maxConcurrentPerHost = 1
+)
+
+// hostLimiter manages per-host concurrency limits.
+type hostLimiter struct {
+	mu       sync.Mutex
+	limiters map[string]*semaphore.Weighted
+}
+
+func newHostLimiter() *hostLimiter {
+	return &hostLimiter{
+		limiters: make(map[string]*semaphore.Weighted),
+	}
+}
+
+func (h *hostLimiter) acquire(ctx context.Context, host string) error {
+	h.mu.Lock()
+	sem, ok := h.limiters[host]
+	if !ok {
+		sem = semaphore.NewWeighted(maxConcurrentPerHost)
+		h.limiters[host] = sem
+	}
+	h.mu.Unlock()
+	return sem.Acquire(ctx, 1)
+}
+
+func (h *hostLimiter) release(host string) {
+	h.mu.Lock()
+	if sem, ok := h.limiters[host]; ok {
+		sem.Release(1)
+	}
+	h.mu.Unlock()
+}
 
 var ErrAlreadyRefreshing = errors.New("refresh already in progress")
 
@@ -64,14 +106,44 @@ func (s *refreshService) RefreshAll(ctx context.Context) error {
 		return err
 	}
 
+	// Use errgroup for parallel refresh with concurrency limit
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(maxConcurrentRefresh)
+
+	// Per-host limiter to avoid overwhelming single servers
+	hl := newHostLimiter()
+
 	for _, feed := range feeds {
-		if err := s.refreshFeedInternal(ctx, feed); err != nil {
-			log.Printf("refresh feed %d (%s): %v", feed.ID, feed.Title, err)
-			continue
-		}
+		feed := feed // capture loop variable
+		g.Go(func() error {
+			// Extract host for per-host limiting
+			host := extractHost(feed.URL)
+			if host != "" {
+				if err := hl.acquire(ctx, host); err != nil {
+					return nil // context cancelled
+				}
+				defer hl.release(host)
+			}
+
+			if err := s.refreshFeedInternal(ctx, feed); err != nil {
+				log.Printf("refresh feed %d (%s): %v", feed.ID, feed.Title, err)
+				// Don't return error to continue refreshing other feeds
+			}
+			return nil
+		})
 	}
 
-	return nil
+	// Wait for all goroutines to complete
+	return g.Wait()
+}
+
+// extractHost returns the host from a URL string.
+func extractHost(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
+	return u.Host
 }
 
 func (s *refreshService) IsRefreshing() bool {
