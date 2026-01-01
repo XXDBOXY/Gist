@@ -214,6 +214,16 @@ entries_ad  -- AFTER DELETE: 同步删除 entries_fts
 *   **危险操作**：除非数据源经过 `unified` 管道清洗，否则**严禁**使用 `dangerouslySetInnerHTML`。
 *   **依赖审计**：定期检查 `bun.lock` 漏洞。
 
+### 5.4 深色模式
+*   Tailwind `dark:` 变体 + CSS 变量（`:root` 浅色，`.dark` 深色）。
+*   通过 `useTheme` hook 切换，支持 `light` | `dark` | `system`。
+*   优先用语义化变量（`bg-background`），必要时用 `dark:` 前缀。
+
+### 5.5 国际化 (i18n)
+*   `i18next` + `react-i18next`，文件位于 `public/locales/{zh,en}/common.json`。
+*   嵌套 JSON 按模块组织（`sidebar.*`, `settings.*`），支持插值 `{{variable}}`。
+*   添加翻译键时**必须**同时更新中英文文件。
+
 ---
 
 ## 6. API 与交互契约

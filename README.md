@@ -12,6 +12,7 @@ bun run build
 
 # Backend
 cd backend
+go mod download
 go run ./cmd/server
 ```
 
