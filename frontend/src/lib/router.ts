@@ -105,8 +105,7 @@ export function buildPath(
   if (unreadOnly) {
     params.set('unread', 'true')
   }
-  // Include contentType in URL if not default 'article'
-  if (contentType && contentType !== 'article') {
+  if (contentType) {
     params.set('type', contentType)
   }
   const queryString = params.toString()

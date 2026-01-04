@@ -64,15 +64,15 @@ function AppContent() {
     if (isMobile) showDetail()
   }, [selectEntry, isMobile, showDetail])
 
-  const handleAddClick = useCallback((contentType: ContentType) => {
-    setAddFeedContentType(contentType)
-    navigate('/add-feed')
+  const handleAddClick = useCallback((ct: ContentType) => {
+    setAddFeedContentType(ct)
+    navigate(`/add-feed?type=${ct}`)
     closeSidebar()
   }, [navigate, closeSidebar])
 
   const handleCloseAddFeed = useCallback(() => {
-    navigate('/all')
-  }, [navigate])
+    navigate(`/all?type=${contentType}`)
+  }, [navigate, contentType])
 
   const handleMarkAllRead = useCallback(() => {
     markAllAsRead(selectionToParams(selection, contentType))
@@ -82,9 +82,9 @@ function AppContent() {
     setSidebarOpen(true)
   }, [setSidebarOpen])
 
-  // Redirect root to /all (must be after ALL hooks including useCallback)
+  // Redirect root to /all with default type (must be after ALL hooks including useCallback)
   if (location === '/') {
-    return <Redirect to="/all" replace />
+    return <Redirect to="/all?type=article" replace />
   }
 
   // Sidebar component (shared between mobile and desktop)
