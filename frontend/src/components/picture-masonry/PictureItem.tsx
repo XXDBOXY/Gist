@@ -4,41 +4,51 @@ import { cn } from '@/lib/utils'
 import { getEntryImages } from '@/lib/extract-images'
 import { getProxiedImageUrl } from '@/lib/image-proxy'
 import { useLightboxStore } from '@/stores/lightbox-store'
+import {
+  useImageDimension,
+  useImageDimensionsStore,
+} from '@/stores/image-dimensions-store'
 import type { Entry, Feed } from '@/types/api'
 
 interface PictureItemProps {
   entry: Entry
   feed?: Feed
-  itemWidth: number
-  'data-grid-groupkey'?: number
 }
 
+// Default 3:4 vertical aspect ratio for uncached images
+const DEFAULT_RATIO = 3 / 4
 const FOOTER_HEIGHT = 40
 
 export const PictureItem = memo(function PictureItem({
   entry,
   feed,
-  itemWidth,
-  ...gridProps
 }: PictureItemProps) {
   const { t } = useTranslation()
   const openLightbox = useLightboxStore((state) => state.open)
-  // Default to 4:3 aspect ratio before image loads
-  const [imageRatio, setImageRatio] = useState<number>(4 / 3)
+  const setDimension = useImageDimensionsStore((state) => state.setDimension)
+
+  // Get cached dimension from store
+  const thumbnailUrl = entry.thumbnailUrl
+  const cachedDimension = useImageDimension(thumbnailUrl)
+  const aspectRatio = cachedDimension?.ratio ?? DEFAULT_RATIO
+
   const [imageLoaded, setImageLoaded] = useState(false)
   const [imageError, setImageError] = useState(false)
   const [iconError, setIconError] = useState(false)
 
-  const thumbnailUrl = entry.thumbnailUrl
   const showIcon = feed?.iconPath && !iconError
 
-  const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
-    const img = e.currentTarget
-    if (img.naturalWidth && img.naturalHeight) {
-      setImageRatio(img.naturalWidth / img.naturalHeight)
-    }
-    setImageLoaded(true)
-  }, [])
+  const handleImageLoad = useCallback(
+    (e: React.SyntheticEvent<HTMLImageElement>) => {
+      const img = e.currentTarget
+      if (img.naturalWidth && img.naturalHeight && thumbnailUrl) {
+        // Save dimensions to store (which also persists to IndexedDB)
+        setDimension(thumbnailUrl, img.naturalWidth, img.naturalHeight)
+      }
+      setImageLoaded(true)
+    },
+    [thumbnailUrl, setDimension]
+  )
 
   const handleClick = useCallback(() => {
     const images = getEntryImages(entry.thumbnailUrl, entry.content, entry.url ?? undefined)
@@ -49,65 +59,62 @@ export const PictureItem = memo(function PictureItem({
 
   const publishedAt = entry.publishedAt ? formatRelativeTime(entry.publishedAt, t) : null
 
-  // Calculate image height based on ratio
-  const imageHeight = itemWidth / imageRatio
-
   if (!thumbnailUrl || imageError) {
     return null
   }
 
   return (
-    <div
-      {...gridProps}
-      className="cursor-pointer overflow-hidden bg-card shadow-sm transition-shadow hover:shadow-md"
-      style={{ width: itemWidth }}
-      onClick={handleClick}
-    >
-      {/* Image container */}
+    <div className="p-2">
       <div
-        className="relative overflow-hidden bg-muted"
-        style={{ height: imageHeight }}
+        className="cursor-pointer overflow-hidden bg-card shadow-sm transition-shadow hover:shadow-md"
+        onClick={handleClick}
       >
-        <img
-          src={getProxiedImageUrl(thumbnailUrl, entry.url ?? undefined)}
-          alt={entry.title || ''}
-          className={cn(
-            'w-full object-cover transition-opacity duration-300',
-            imageLoaded ? 'opacity-100' : 'opacity-0'
-          )}
-          loading="lazy"
-          onLoad={handleImageLoad}
-          onError={() => setImageError(true)}
-        />
-        {!imageLoaded && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="size-6 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground/60" />
-          </div>
-        )}
-      </div>
-
-      {/* Footer */}
-      <div
-        className="flex items-center gap-1.5 px-2 text-xs text-muted-foreground"
-        style={{ height: FOOTER_HEIGHT }}
-      >
-        {showIcon ? (
+        {/* Image container with aspect ratio */}
+        <div
+          className="relative overflow-hidden bg-muted"
+          style={{ aspectRatio }}
+        >
           <img
-            src={`/icons/${feed.iconPath}`}
-            alt=""
-            className="size-4 shrink-0 rounded object-contain"
-            onError={() => setIconError(true)}
+            src={getProxiedImageUrl(thumbnailUrl, entry.url ?? undefined)}
+            alt={entry.title || ''}
+            className={cn(
+              'size-full object-cover transition-opacity duration-300',
+              imageLoaded ? 'opacity-100' : 'opacity-0'
+            )}
+            loading="lazy"
+            onLoad={handleImageLoad}
+            onError={() => setImageError(true)}
           />
-        ) : (
-          <FeedIcon className="size-4 shrink-0 text-muted-foreground/50" />
-        )}
-        <span className="truncate">{feed?.title || 'Unknown'}</span>
-        {publishedAt && (
-          <>
-            <span className="text-muted-foreground/50">·</span>
-            <span className="shrink-0">{publishedAt}</span>
-          </>
-        )}
+          {!imageLoaded && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="size-6 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground/60" />
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div
+          className="flex items-center gap-1.5 px-2 text-xs text-muted-foreground"
+          style={{ height: FOOTER_HEIGHT }}
+        >
+          {showIcon ? (
+            <img
+              src={`/icons/${feed.iconPath}`}
+              alt=""
+              className="size-4 shrink-0 rounded object-contain"
+              onError={() => setIconError(true)}
+            />
+          ) : (
+            <FeedIcon className="size-4 shrink-0 text-muted-foreground/50" />
+          )}
+          <span className="truncate">{feed?.title || 'Unknown'}</span>
+          {publishedAt && (
+            <>
+              <span className="text-muted-foreground/50">·</span>
+              <span className="shrink-0">{publishedAt}</span>
+            </>
+          )}
+        </div>
       </div>
     </div>
   )

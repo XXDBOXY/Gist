@@ -39,7 +39,7 @@ export default defineConfig({
             'rehype-stringify',
             'hast-util-to-jsx-runtime',
           ],
-          'grid-vendor': ['@egjs/react-infinitegrid'],
+          'masonry-vendor': ['@virtuoso.dev/masonry'],
           'carousel-vendor': ['embla-carousel-react'],
         },
       },

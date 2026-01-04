@@ -21,14 +21,9 @@ function getCurrentColumn(width: number): number {
   return columns
 }
 
-function calcItemWidth(containerWidth: number, gutter: number, column: number): number {
-  return Math.floor((containerWidth - gutter * (column - 1)) / column)
-}
-
-export function useMasonryColumn(gutter: number, isMobile?: boolean) {
+export function useMasonryColumn(isMobile?: boolean) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [currentColumn, setCurrentColumn] = useState(isMobile ? 2 : 3)
-  const [currentItemWidth, setCurrentItemWidth] = useState(0)
   const [isReady, setIsReady] = useState(false)
 
   useLayoutEffect(() => {
@@ -45,10 +40,8 @@ export function useMasonryColumn(gutter: number, isMobile?: boolean) {
       const contentWidth = container.clientWidth - paddingLeft - paddingRight
 
       const column = isMobile ? 2 : getCurrentColumn(contentWidth)
-      const itemWidth = calcItemWidth(contentWidth, gutter, column)
 
       setCurrentColumn(column)
-      setCurrentItemWidth(itemWidth)
       setIsReady(true)
     }
 
@@ -64,12 +57,11 @@ export function useMasonryColumn(gutter: number, isMobile?: boolean) {
     return () => {
       resizeObserver.disconnect()
     }
-  }, [gutter, isMobile])
+  }, [isMobile])
 
   return {
     containerRef,
     currentColumn,
-    currentItemWidth,
     isReady,
   }
 }

@@ -1,14 +1,16 @@
-import { useMemo, useCallback, useRef, useEffect } from 'react'
+import { useMemo, useRef, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { MasonryInfiniteGrid } from '@egjs/react-infinitegrid'
+import { VirtuosoMasonry } from '@virtuoso.dev/masonry'
 import { useEntriesInfinite, useUnreadCounts } from '@/hooks/useEntries'
 import { useFeeds } from '@/hooks/useFeeds'
 import { useFolders } from '@/hooks/useFolders'
 import { useMasonryColumn } from '@/hooks/useMasonryColumn'
 import { selectionToParams, type SelectionType } from '@/hooks/useSelection'
+import { useImageDimensionsStore } from '@/stores/image-dimensions-store'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import { PictureItem } from './PictureItem'
 import { EntryListHeader } from '@/components/entry-list/EntryListHeader'
-import type { ContentType, Feed } from '@/types/api'
+import type { ContentType, Entry, Feed } from '@/types/api'
 
 interface PictureMasonryProps {
   selection: SelectionType
@@ -20,7 +22,14 @@ interface PictureMasonryProps {
   onMenuClick?: () => void
 }
 
-const GUTTER = 16
+interface MasonryItem {
+  entry: Entry
+  feed?: Feed
+}
+
+interface MasonryContext {
+  feedsMap: Map<string, Feed>
+}
 
 export function PictureMasonry({
   selection,
@@ -34,63 +43,10 @@ export function PictureMasonry({
   const { t } = useTranslation()
   const params = selectionToParams(selection, contentType)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const sentinelRef = useRef<HTMLDivElement>(null)
 
-  const { containerRef, currentColumn, currentItemWidth, isReady } = useMasonryColumn(
-    GUTTER,
-    isMobile
-  )
-
-  // Track scroll reset state with user interaction detection
-  const scrollResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const scrollResetActiveRef = useRef(false)
-  const userHasScrolledRef = useRef(false)
-
-  // Mark that we need to reset scroll when selection or filter changes
-  useEffect(() => {
-    const container = scrollContainerRef.current
-
-    // Clear any existing timeout
-    if (scrollResetTimeoutRef.current) {
-      clearTimeout(scrollResetTimeoutRef.current)
-    }
-
-    // Reset state
-    scrollResetActiveRef.current = true
-    userHasScrolledRef.current = false
-
-    // Immediately reset scroll to top
-    if (container) {
-      container.scrollTop = 0
-    }
-
-    // Detect user scroll interaction
-    const handleUserScroll = () => {
-      // Only count as user scroll if we've scrolled past a threshold
-      if (container && container.scrollTop > 50) {
-        userHasScrolledRef.current = true
-      }
-    }
-    container?.addEventListener('scroll', handleUserScroll)
-
-    // Disable scroll reset mode after 5 seconds
-    scrollResetTimeoutRef.current = setTimeout(() => {
-      scrollResetActiveRef.current = false
-    }, 5000)
-
-    return () => {
-      if (scrollResetTimeoutRef.current) {
-        clearTimeout(scrollResetTimeoutRef.current)
-      }
-      container?.removeEventListener('scroll', handleUserScroll)
-    }
-  }, [selection, unreadOnly])
-
-  // Reset scroll on every render complete while scroll reset is active and user hasn't scrolled
-  const handleRenderComplete = useCallback(() => {
-    if (scrollResetActiveRef.current && !userHasScrolledRef.current && scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop = 0
-    }
-  }, [])
+  const { containerRef, currentColumn, isReady } = useMasonryColumn(isMobile)
+  const loadFromDB = useImageDimensionsStore((state) => state.loadFromDB)
 
   const { data: feeds = [] } = useFeeds()
   const { data: folders = [] } = useFolders()
@@ -121,27 +77,58 @@ export function PictureMasonry({
     return data?.pages.flatMap((page) => page.entries) ?? []
   }, [data])
 
-  const items = useMemo(() => {
-    return entries.map((entry, index) => ({
+  // Load cached dimensions from IndexedDB
+  useEffect(() => {
+    const srcs = entries
+      .map((entry) => entry.thumbnailUrl)
+      .filter((url): url is string => !!url)
+    if (srcs.length > 0) {
+      loadFromDB(srcs)
+    }
+  }, [entries, loadFromDB])
+
+  const items: MasonryItem[] = useMemo(() => {
+    return entries.map((entry) => ({
       entry,
       feed: feedsMap.get(entry.feedId),
-      groupKey: Math.floor(index / 20),
     }))
   }, [entries, feedsMap])
 
-  // Handle infinite scroll
-  const handleRequestAppend = useCallback(
-    (e: { groupKey?: string | number; wait: () => void; ready: () => void }) => {
-      if (!hasNextPage || isFetchingNextPage) {
-        return
-      }
-      e.wait()
-      fetchNextPage().then(() => {
-        e.ready()
-      })
-    },
-    [hasNextPage, isFetchingNextPage, fetchNextPage]
+  const context: MasonryContext = useMemo(
+    () => ({ feedsMap }),
+    [feedsMap]
   )
+
+  // Infinite scroll using IntersectionObserver
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    const container = scrollContainerRef.current
+    if (!sentinel || !container) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0]
+        if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage()
+        }
+      },
+      {
+        root: container,
+        rootMargin: '300px',
+        threshold: 0,
+      }
+    )
+
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
+
+  // Reset scroll on selection/filter change
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0
+    }
+  }, [selection, unreadOnly])
 
   const title = useMemo(() => {
     switch (selection.type) {
@@ -175,6 +162,24 @@ export function PictureMasonry({
     }
   }, [unreadCounts, selection, feeds, contentType])
 
+  const ItemContent = useCallback(
+    ({ data: item }: { data: MasonryItem; context: MasonryContext }) => {
+      return <PictureItem entry={item.entry} feed={item.feed} />
+    },
+    []
+  )
+
+  // Generate a unique key for virtuoso to force re-render on selection change
+  const virtuosoKey = useMemo(() => {
+    const selectionKey =
+      selection.type === 'feed'
+        ? selection.feedId
+        : selection.type === 'folder'
+          ? selection.folderId
+          : selection.type
+    return `${selectionKey}-${unreadOnly}`
+  }, [selection, unreadOnly])
+
   return (
     <div className="flex h-full flex-col">
       <EntryListHeader
@@ -188,43 +193,35 @@ export function PictureMasonry({
       />
 
       {/* Scroll container */}
-      <div
+      <ScrollArea
         ref={(el) => {
           scrollContainerRef.current = el
           ;(containerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
         }}
-        className="min-h-0 flex-1 overflow-auto p-4"
+        className="min-h-0 flex-1"
+        viewportClassName="p-4"
       >
         {isLoading ? (
           <MasonrySkeleton />
         ) : items.length === 0 ? (
           <EmptyState />
         ) : isReady ? (
-          <MasonryInfiniteGrid
-            key={`${selection.type}-${'feedId' in selection ? selection.feedId : 'folderId' in selection ? selection.folderId : ''}-${unreadOnly}`}
-            gap={GUTTER}
-            column={currentColumn}
-            threshold={300}
-            onRequestAppend={handleRequestAppend}
-            onRenderComplete={handleRenderComplete}
-            scrollContainer={scrollContainerRef.current}
-            useResizeObserver
-            observeChildren
-          >
-            {items.map((item) => (
-              <PictureItem
-                key={item.entry.id}
-                data-grid-groupkey={item.groupKey}
-                entry={item.entry}
-                feed={item.feed}
-                itemWidth={currentItemWidth}
-              />
-            ))}
-          </MasonryInfiniteGrid>
+          <>
+            <VirtuosoMasonry
+              key={virtuosoKey}
+              data={items}
+              columnCount={currentColumn}
+              ItemContent={ItemContent}
+              context={context}
+              style={{ height: '100%' }}
+            />
+            {/* Sentinel for infinite scroll */}
+            <div ref={sentinelRef} className="h-px" />
+          </>
         ) : null}
 
         {isFetchingNextPage && <LoadingMore />}
-      </div>
+      </ScrollArea>
     </div>
   )
 }
