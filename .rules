@@ -40,9 +40,17 @@
 *   **依赖注入**：通过构造函数注入依赖，配置对象除外，**禁止**使用全局状态变量。
 *   **可见性控制**：仅公开必要的 API（首字母大写），私有逻辑严格保持小写。
 *   **并发安全**：goroutine 间共享状态必须使用同步机制（`sync/atomic`、`sync.Mutex` 或 channel），**禁止**裸写共享变量。
+*   **可选字段**：Model 中可选/nullable 字段使用指针类型 (`*string`, `*time.Time`)，便于区分 "空值" 和 "未设置"。
+*   **Mock 测试**：使用 `go.uber.org/mock/gomock`，Mock 文件统一放在 `service/testutil/` 目录，没有要求**不需要**编写测试代码。
 
 ### 4.2 数据存储 (Storage)
-*   **驱动模式**：SQLite 通过 DSN pragma 参数配置 (`_pragma=journal_mode(WAL)&_pragma=busy_timeout(30000)`)，确保连接池所有连接生效。
+*   **驱动模式**：SQLite 通过 DSN pragma 参数配置，确保连接池所有连接生效：
+    ```
+    _pragma=journal_mode(WAL)
+    _pragma=foreign_keys(ON)
+    _pragma=busy_timeout(30000)
+    _pragma=synchronous(NORMAL)
+    ```
 *   **全文检索**：建立 `entries_fts` 虚拟表（unicode61 分词），通过 Trigger 自动同步主表数据。
     *   **注意**：`modernc.org/sqlite` 不支持 FTS5 的特殊删除语法 `INSERT INTO fts(fts, ...) VALUES('delete', ...)`，必须使用 `DELETE FROM fts WHERE rowid = ?`。
 *   **ORM 规范**：使用 GORM 时必须使用参数绑定（`?`），**严禁**字符串拼接 SQL。
@@ -205,6 +213,19 @@ entries_ad  -- AFTER DELETE: 同步删除 entries_fts
 ### 4.6 服务器生命周期
 *   **优雅关闭**：必须监听 `SIGINT/SIGTERM` 信号，调用 `server.Shutdown()` 等待请求完成，**禁止**直接 `os.Exit()`。
 *   **资源清理**：数据库连接、定时任务等资源必须在关闭流程中正确释放。
+*   **后台任务**：使用 `sync.WaitGroup` 确保 goroutine 正确结束，使用无缓冲 channel 传递停止信号。
+*   **定时任务**：在启动时立即执行一次，然后按间隔运行；刷新任务设置合理超时 (如 5 分钟)。
+
+### 4.7 HTTP 客户端
+*   **User-Agent 策略**：默认使用 `GistUserAgent` 标识自身，备用 `ChromeUserAgent` 用于被屏蔽时重试。
+*   **TLS 指纹**：Chrome UA 版本需与 TLS 指纹配置匹配 (当前 Chrome 135)。
+
+### 4.8 环境变量
+后端环境变量使用 `GIST_` 前缀：
+*   `GIST_ADDR` - 服务监听地址 (默认 `:8080`)
+*   `GIST_DB_PATH` - 数据库路径
+*   `GIST_DATA_DIR` - 数据目录 (默认 `./data`)
+*   `GIST_STATIC_DIR` - 静态文件目录
 
 ---
 
@@ -214,17 +235,29 @@ entries_ad  -- AFTER DELETE: 同步删除 entries_fts
 *   **目录结构**：
     *   `src/components/ui`: 通用组件。
     *   `src/components/{feature}/`: 业务组件 (如 `article/`)。
+    *   `src/stores/`: Zustand 状态管理。
+    *   `src/hooks/`: 自定义 React Hooks。
+    *   `src/lib/`: 工具函数。
 *   **逻辑分离**：UI 负责渲染，逻辑抽离至自定义 Hooks (`useFeedData` 等)。
 *   **类型规范**：所有 Props 和 API 响应必须定义 Interface，**严禁**使用 `any`。
+*   **路径别名**：使用 `@` 别名指向 `src` 目录，import 使用 `@/components/...` 格式。
+*   **路由库**：使用 `wouter` 轻量路由，路由解析/构建逻辑集中在 `lib/router.ts`。
 
 ### 5.2 性能工程
-*   **构建优化**：Vite 开启 `manualChunks` 拆分 React 核心与 UI 库。
-*   **状态管理**：使用 `TanStack Query` 处理 Feed 数据缓存与预加载。
+*   **状态管理**：使用 `TanStack Query` 处理 Feed 数据缓存与预加载：
+    *   设置 `staleTime` 避免频繁重新请求 (如 30s)
+    *   设置 `refetchInterval` 保持数据新鲜 (如 60s)
+    *   使用 `invalidateQueries` 进行缓存失效
+    *   分页使用 `useInfiniteQuery` + `getNextPageParam`
 *   **渲染优化**：列表页禁止同步执行复杂的 Readability 转换，使用虚拟滚动。
 *   **分页边界**：`hasMore` 判断应请求 `limit+1` 条数据，通过实际返回数量判断是否有下一页。
 
 ### 5.3 安全与渲染 (XSS 防御)
 *   **危险操作**：除非数据源经过 `unified` 管道清洗，否则**严禁**使用 `dangerouslySetInnerHTML`。
+*   **HTML 解析**：使用 `unified` + `rehype` 管道处理 HTML：
+    *   自定义 sanitize schema 允许 `video/audio/figure` 等标签
+    *   允许 `style/class` 属性用于保留原始样式
+    *   使用 `hast-util-to-jsx-runtime` 转换为 React 组件
 *   **依赖审计**：定期检查 `bun.lock` 漏洞。
 
 ### 5.4 深色模式
@@ -241,12 +274,26 @@ entries_ad  -- AFTER DELETE: 同步删除 entries_fts
 *   **长连接清理**：SSE/WebSocket 连接必须在 `useEffect` 返回的清理函数中关闭，防止连接泄漏。
 *   **异步任务取消**：启动新批量任务前必须先取消旧任务，再过滤/处理数据，避免状态不一致。
 *   **避免全局状态**：**禁止**使用模块级变量传递请求上下文，应通过函数参数或闭包传递。
+*   **Zustand 模式**：
+    *   Store 需暴露 `actions` 对象供非 React 代码调用
+    *   简单全局状态可使用 `useSyncExternalStore` + 模块级变量
+*   **URL 状态持久化**：筛选状态 (unreadOnly, contentType) 通过 URL query params 持久化。
 
 ---
 
 ## 6. API 与交互契约
 
 *   **一致性**：后端 DTO 修改后，必须同步更新前端 `src/types/`。
+*   **Snowflake ID 序列化**：
+    *   JavaScript 无法安全处理大于 2^53-1 的整数
+    *   后端 API 响应中 ID 必须序列化为字符串 (`idToString()`)
+    *   前端类型定义中 ID 字段必须使用 `string` 类型
+*   **时间格式**：API 响应中的时间字段必须转换为 UTC 时区，使用 RFC3339 格式。
 *   **错误处理**：
-    *   **后端**：返回标准化的 JSON 错误响应（含 `error` 字段）。
-    *   **前端**：`api/index.ts` 统一拦截非 2xx 响应并抛出结构化错误。
+    *   **后端**：定义标准错误类型 (`ErrNotFound`, `ErrConflict`, `ErrInvalid`, `ErrFeedFetch`)，Handler 层使用 `writeServiceError` 统一转换错误码。
+    *   **前端**：`api/index.ts` 统一拦截非 2xx 响应，`ApiError` 包含 `status` 属性用于区分错误类型。
+*   **流式响应**：
+    *   AI 功能使用 Server-Sent Events 流式传输
+    *   前端使用 AsyncGenerator 处理流式响应
+    *   缓存命中时返回 JSON，未命中时返回 SSE 流
+    *   批量操作使用 NDJSON 格式流式响应
