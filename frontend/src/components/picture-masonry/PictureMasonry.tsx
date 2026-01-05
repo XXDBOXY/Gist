@@ -7,7 +7,6 @@ import { useFolders } from '@/hooks/useFolders'
 import { useMasonryColumn } from '@/hooks/useMasonryColumn'
 import { selectionToParams, type SelectionType } from '@/hooks/useSelection'
 import { useImageDimensionsStore } from '@/stores/image-dimensions-store'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { PictureItem } from './PictureItem'
 import { EntryListHeader } from '@/components/entry-list/EntryListHeader'
 import type { ContentType, Entry, Feed } from '@/types/api'
@@ -43,7 +42,6 @@ export function PictureMasonry({
   const { t } = useTranslation()
   const params = selectionToParams(selection, contentType)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const sentinelRef = useRef<HTMLDivElement>(null)
 
   const { containerRef, currentColumn, isReady } = useMasonryColumn(isMobile)
   const loadFromDB = useImageDimensionsStore((state) => state.loadFromDB)
@@ -99,34 +97,59 @@ export function PictureMasonry({
     [feedsMap]
   )
 
-  // Infinite scroll using IntersectionObserver
+  // Infinite scroll by listening to VirtuosoMasonry's internal scroll container
   useEffect(() => {
-    const sentinel = sentinelRef.current
-    const container = scrollContainerRef.current
-    if (!sentinel || !container) return
+    const wrapper = scrollContainerRef.current
+    if (!wrapper || !isReady) return
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0]
-        if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
-          fetchNextPage()
-        }
-      },
-      {
-        root: container,
-        rootMargin: '300px',
-        threshold: 0,
+    let scrollEl: HTMLElement | null = null
+    let observer: MutationObserver | null = null
+
+    const handleScroll = () => {
+      if (!scrollEl) return
+      const { scrollTop, scrollHeight, clientHeight } = scrollEl
+      if (scrollHeight - scrollTop - clientHeight < 300 && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage()
       }
-    )
+    }
 
-    observer.observe(sentinel)
-    return () => observer.disconnect()
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
+    const setupScrollListener = () => {
+      // VirtuosoMasonry creates a div with overflow-y: scroll
+      const scroller = wrapper.querySelector('[style*="overflow"]') as HTMLElement
+      if (!scroller) return false
+
+      scrollEl = scroller
+      scroller.addEventListener('scroll', handleScroll, { passive: true })
+      return true
+    }
+
+    // Try to find immediately
+    if (!setupScrollListener()) {
+      // If not found, use MutationObserver to wait for VirtuosoMasonry to render
+      observer = new MutationObserver(() => {
+        if (setupScrollListener() && observer) {
+          observer.disconnect()
+          observer = null
+        }
+      })
+      observer.observe(wrapper, { childList: true, subtree: true })
+    }
+
+    return () => {
+      observer?.disconnect()
+      if (scrollEl) {
+        scrollEl.removeEventListener('scroll', handleScroll)
+      }
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, isReady])
 
   // Reset scroll on selection/filter change
   useEffect(() => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTop = 0
+    const wrapper = scrollContainerRef.current
+    if (!wrapper) return
+    const scroller = wrapper.querySelector('[style*="overflow"]') as HTMLElement
+    if (scroller) {
+      scroller.scrollTop = 0
     }
   }, [selection, unreadOnly])
 
@@ -192,36 +215,34 @@ export function PictureMasonry({
         onMenuClick={onMenuClick}
       />
 
-      {/* Scroll container */}
-      <ScrollArea
+      {/* Masonry container */}
+      <div
         ref={(el) => {
           scrollContainerRef.current = el
           ;(containerRef as React.MutableRefObject<HTMLDivElement | null>).current = el
         }}
-        className="min-h-0 flex-1"
-        viewportClassName="p-4"
+        className="min-h-0 flex-1 overflow-hidden"
       >
         {isLoading ? (
-          <MasonrySkeleton />
+          <div className="h-full overflow-auto p-4">
+            <MasonrySkeleton />
+          </div>
         ) : items.length === 0 ? (
-          <EmptyState />
+          <div className="h-full overflow-auto p-4">
+            <EmptyState />
+          </div>
         ) : isReady ? (
-          <>
-            <VirtuosoMasonry
-              key={virtuosoKey}
-              data={items}
-              columnCount={currentColumn}
-              ItemContent={ItemContent}
-              context={context}
-              style={{ height: '100%' }}
-            />
-            {/* Sentinel for infinite scroll */}
-            <div ref={sentinelRef} className="h-px" />
-          </>
+          <VirtuosoMasonry
+            key={virtuosoKey}
+            data={items}
+            columnCount={currentColumn}
+            ItemContent={ItemContent}
+            context={context}
+            style={{ height: '100%', padding: '1rem' }}
+          />
         ) : null}
-
         {isFetchingNextPage && <LoadingMore />}
-      </ScrollArea>
+      </div>
     </div>
   )
 }
@@ -279,3 +300,4 @@ function LoadingMore() {
     </div>
   )
 }
+
